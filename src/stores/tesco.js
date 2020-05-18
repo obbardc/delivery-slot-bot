@@ -138,8 +138,29 @@ class TescoStore {
    * @returns {Promise<SlotDate[]>}
    */
   async getSlots(page) {
-    // Look for delivery pages
-    const slotDates = await page.$$eval(
+
+    // Find collection points
+    var collectionPoints = await page.$$eval(
+      ".location-list--item a[role=radio]",
+      (elements) =>
+        elements.map((item) => ({
+          name: item.getElementsByClassName("location-list--content-title")[0].textContent,
+          locationId: item["href"].match(/locationId=(\d+)/)[1],
+          url: item["href"]
+        }))
+    );
+    console.log("collectionPoints=");
+    console.log(collectionPoints);
+
+    // Filter collection points
+    collectionPoints = collectionPoints.filter((collectionPoint, index, arr) => {
+        return collectionPoint.name.toLowerCase().search(/crawley|gatwick|horsham/g) != -1;
+    });
+    console.log("collectionPoints(filtered)=");
+    console.log(collectionPoints);
+
+    // Find collection slots
+    var collectionSlotDates = await page.$$eval(
       ".slot-selector--week-tabheader-link",
       (elements) =>
         elements.map((item) => ({
@@ -147,6 +168,21 @@ class TescoStore {
           url: item["href"],
         }))
     );
+    console.log("collectionSlotDates=");
+    console.log(collectionSlotDates);
+
+    // todo filter slotDates based on already booked slot
+    var slotDates = [];
+
+    // Create "slots" for each collection point and each date group
+    for (var collectionPoint of collectionPoints) {
+        for (var slotDate of collectionSlotDates) {
+            slotDates.push({
+                date: collectionPoint.name + " " + slotDate.date,
+                url: slotDate.url.replace(/locationId=\d+/, "locationId=" + collectionPoint.locationId)
+            });
+        }
+    }
 
     const foundSlotDates = [];
 
