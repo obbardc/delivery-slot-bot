@@ -27,6 +27,12 @@ class TelegramNotifier {
 
   async sendMessage(msg) {
     const api = new telegram({ token: this.config.telegram_api_token });
+
+    if ('telegram_chat_id' in this.config) {
+        this._sendMessage(api, this.config.telegram_chat_id, msg);
+        return;
+    }
+
     const updates = await api.getUpdates({});
     if (updates && updates.length != 0) {
       const chatIds = updates.map((update) =>
