@@ -2,6 +2,7 @@ const { CookieStore } = require("../cookie-store");
 const { StoreError } = require("../errors");
 const { goto, clickAndWaitForNavigation } = require("../puppeteer-utils");
 
+const ordersUrl = "https://www.tesco.com/groceries/en-GB/orders"
 const deliveryUrl = "https://www.tesco.com/groceries/en-GB/slots/delivery";
 const collectionUrl = "https://www.tesco.com/groceries/en-GB/slots/collection";
 const loginUrl = "https://secure.tesco.com/account/en-GB/login";
@@ -111,7 +112,14 @@ class TescoStore {
    */
   async checkCollections(page) {
     await this.start(page, collectionUrl);
-    return await this.getSlots(page);
+    var slots = await this.getSlots(page);
+    console.log("there are slots: " + slots.length);
+
+    // get outstanding orders
+    await this.start(page, ordersUrl);
+    slots = await this.checkIfSlotsNeeded(page, slots);
+
+    return slots;
   }
 
   /**
@@ -131,6 +139,27 @@ class TescoStore {
     return await page.screenshot({
       fullPage: true,
     });
+  }
+
+  async checkIfSlotsNeeded(page, slots) {
+    var orders = await page.$$eval(
+      ".orders-list--item-summary div.calendar",
+      (elements) =>
+        elements.map((item) => ({
+          date: new Date(parseInt(item.getAttribute("data-date"), 10))
+        }))
+    );
+    console.log("orders=");
+    console.log(orders);
+
+    //for (var slot of slots) {
+        for (var order of orders) {
+            //console.log("slot date: " + slot.date ", order date" + order.date);
+            console.log("order date : " + order.date);
+        }
+    //}
+
+    return slots;
   }
 
   /**
@@ -154,7 +183,7 @@ class TescoStore {
 
     // Filter collection points
     collectionPoints = collectionPoints.filter((collectionPoint, index, arr) => {
-        return collectionPoint.name.toLowerCase().search(/crawley|gatwick|horsham/g) != -1;
+        return collectionPoint.name.toLowerCase().search(/crawley|horsham/g) != -1;
     });
     console.log("collectionPoints(filtered)=");
     console.log(collectionPoints);
